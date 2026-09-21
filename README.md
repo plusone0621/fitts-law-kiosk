@@ -4,8 +4,9 @@
 
 ---
 
-## Scenario & Innovation & Application
-I simulated a Mcdonald's kiosk to test Fitts' Law on large touchscreens which often cause arm fatigue. I used a Home button with targets of different sizes and distances. My data shows that smaller and farther targets still take longer to hit. Therefore, a good kiosk UI should put big, important buttons near the user's resting hand to save effort.
+## Scenario, Innovation, Application
+
+I simulated a Mcdonald's kiosk to test Fitts' Law. I set a "add to cart" button and moved a menu item target around at different distances and sizes. My results showed that farther and smaller targets took longer to hit. This means kiosk designers should put big, important buttons close to where the user's hand naturally rests, so people don't have to reach as far.
 
 ---
 
