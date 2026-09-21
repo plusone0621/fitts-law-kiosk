@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/貼上你的影片連結
 
 > TODO：把 R 產生的散佈圖（例如 fitts_scatter.png）也上傳到同個 repo，檔名對上就會自動顯示在下面。
 
-![Fitts' Law scatter plot](fitts_scatter.png)
+![Fitts' Law scatter plot](hw1pic.fig)
 
 ## Custom Fitts' Law Formula
 
