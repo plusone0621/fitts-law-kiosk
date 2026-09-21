@@ -29,9 +29,6 @@ https://github.com/user-attachments/assets/貼上你的影片連結
 
 ## Custom Fitts' Law Formula
 
-> TODO：把 a、b 換成你 `summary(model)` 跑出來的實際數字。
-
 ```
-MT = a + b × ID
-MT = _____ + _____ × log2(A/W + 1)
+MT = 626.10 + 173.49 × log2(A/W + 1)
 ```
