@@ -1,6 +1,6 @@
 # Fitts' Law Experiment — McDonald's Self-Order Kiosk
 
-🔗 **Live app:** https://[你的帳號].github.io/[repo名稱]/
+🔗 **Live app:** https://plusone0621.github.io/fitts-law-kiosk/
 
 ---
 
