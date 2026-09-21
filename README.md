@@ -18,9 +18,7 @@ MT = 626.10 + 173.49 × log2(A/W + 1)
 ---
 ## Screen Recording
 
-> TODO：把 mp4 影片拖進任一個 Issue 或 Discussion 的輸入框，GitHub 會自動產生一個 `https://github.com/user-attachments/assets/...` 的連結，把那個連結整行貼在下面（不用發布 Issue，也不需要 `[]()` 包起來，單獨一行就會自動變成可播放的嵌入式影片）。
-
-https://github.com/user-attachments/assets/貼上你的影片連結
+https://drive.google.com/file/d/1eRYPE591G-Z-7meVbDlaOf4z0ve105SL/view?usp=sharing
 
 ## Empirical Analysis
 ![Fitts' Law scatter plot](hw1fig.png)
