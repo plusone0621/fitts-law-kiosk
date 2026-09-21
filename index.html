@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Self-Order Kiosk Task — Fitts' Law Experiment</title>
+<style>
+  :root{
+    --red:#da291c;
+    --yellow:#ffc72c;
+    --dark:#2b1a15;
+    --panel:#f4f1ec;
+    --muted:#6f6a63;
+    --active:#1b7a34;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:#efece6;
+    color:var(--dark);
+    font-family:'Segoe UI',Arial,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:24px 16px 40px;
+  }
+  h1{
+    font-size:1.15rem;
+    font-weight:700;
+    color:var(--red);
+    margin:0 0 4px;
+  }
+  p.sub{
+    color:var(--muted);
+    font-size:0.85rem;
+    max-width:600px;
+    text-align:center;
+    margin:0 0 18px;
+    line-height:1.5;
+  }
+  #panel{
+    background:#fff;
+    border:1px solid #ddd6c8;
+    border-radius:6px;
+    padding:10px 18px;
+    display:flex;
+    gap:24px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-bottom:16px;
+    font-family:'Consolas','Courier New',monospace;
+    font-size:0.8rem;
+  }
+  #panel div span{color:var(--red); font-weight:700;}
+  #unit{
+    background:#1a1a1a;
+    border-radius:22px;
+    padding:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.35);
+  }
+  canvas{
+    background:#fff;
+    border-radius:6px;
+    display:block;
+    touch-action:none;
+    cursor:pointer;
+  }
+  #controls{
+    margin-top:18px;
+    display:flex;
+    gap:12px;
+  }
+  button{
+    font-family:inherit;
+    font-size:0.85rem;
+    font-weight:600;
+    background:var(--yellow);
+    color:#3a2410;
+    border:none;
+    border-radius:5px;
+    padding:10px 20px;
+    cursor:pointer;
+  }
+  button:hover{filter:brightness(0.95);}
+  button:disabled{
+    background:#ddd6c8;
+    color:#a39d90;
+    cursor:not-allowed;
+  }
+  #msg{
+    margin-top:14px;
+    min-height:20px;
+    font-size:0.85rem;
+    color:var(--active);
+    text-align:center;
+    max-width:600px;
+  }
+</style>
+</head>
+<body>
+
+  <h1>McDonald's SELF-ORDER TASK</h1>
+  <p class="sub">
+    Scenario: a customer standing in front of a vertical self-order
+    McDonald's kiosk. They must quickly move their hand between a menu
+    item and the "Add to Cart" button in the corner. Item distance (A)
+    from the cart button and item size (W) change across conditions, as
+    in a Fitts' Law task.
+  </p>
+
+  <div id="panel">
+    <div>CONDITION <span id="condNum">0</span>/<span id="condTotal">0</span></div>
+    <div>A <span id="curA">–</span> px</div>
+    <div>W <span id="curW">–</span> px</div>
+    <div>ORDER # <span id="trialNum">0</span></div>
+  </div>
+
+  <div id="unit">
+    <canvas id="stage" width="480" height="700"></canvas>
+  </div>
+
+  <div id="controls">
+    <button id="startBtn">Start Session</button>
+    <button id="exportBtn" disabled>Export CSV</button>
+  </div>
+
+  <div id="msg">Press "Start Session" to begin.</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  const W_C = canvas.width, H_C = canvas.height;
+
+  const CART_X = 390, CART_Y = 630, CART_W = 140, CART_H = 56;
+  const GRID_TOP = 150, GRID_BOTTOM = 610;
+
+  const A_VALUES = [160, 280, 400];   // distance from cart button, px
+  const W_VALUES = [40, 70, 100];     // item tile side length, px
+  const CLICKS_PER_COND = 8;          // item selections per condition
+
+  const ITEM_NAMES = ['大麥克','麥香雞','薯條','可樂','麥克雞塊','蘋果派','紅茶','生菜沙拉','霜淇淋'];
+
+  let conditions = [];
+  for (const A of A_VALUES){
+    for (const W of W_VALUES){
+      conditions.push({A, W});
+    }
+  }
+  for (let i = conditions.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [conditions[i], conditions[j]] = [conditions[j], conditions[i]];
+  }
+  document.getElementById('condTotal').textContent = conditions.length;
+
+  let condIndex = -1;
+  let current = null;
+  let itemTile = null;         // {x,y,w,label}
+  let stage = 'item';          // 'item' -> select the menu tile, 'cart' -> tap Add to Cart
+  let clicksThisCond = 0;
+  let trialCount = 0;
+  let lastTime = 0;
+  let running = false;
+  let results = [];
+
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function placeItemTile(A, W){
+    const theta = (Math.PI/180) * (35 + Math.random()*20); // 35–55 deg, upper-left of cart
+    let x = CART_X - A*Math.cos(theta);
+    let y = CART_Y - A*Math.sin(theta);
+    x = Math.min(Math.max(x, W/2+16), W_C-W/2-16);
+    y = Math.min(Math.max(y, GRID_TOP+W/2+10), GRID_BOTTOM-W/2);
+    const label = ITEM_NAMES[Math.floor(Math.random()*ITEM_NAMES.length)];
+    return {x, y, w:W, label};
+  }
+
+  function drawKioskBackdrop(){
+    ctx.clearRect(0,0,W_C,H_C);
+
+    // header
+    ctx.fillStyle = '#da291c';
+    ctx.fillRect(0,0,W_C,70);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText("McDonald's 自助點餐機", 16, 32);
+    ctx.font = '12px Arial';
+    ctx.fillText('🕐 後方顧客排隊中，請盡快完成點餐', 16, 54);
+
+    // category tabs
+    const tabs = ['超值全餐','漢堡','小食','飲料','甜點'];
+    const tabW = W_C/tabs.length;
+    tabs.forEach((t,i)=>{
+      ctx.fillStyle = i===1 ? '#ffc72c' : '#f4f1ec';
+      ctx.fillRect(i*tabW, 70, tabW, 34);
+      ctx.fillStyle = '#3a2410';
+      ctx.font = '11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(t, i*tabW+tabW/2, 91);
+    });
+    ctx.strokeStyle = '#ddd6c8';
+    ctx.beginPath(); ctx.moveTo(0,104); ctx.lineTo(W_C,104); ctx.stroke();
+  }
+
+  function drawCartButton(isActive){
+    ctx.save();
+    ctx.translate(CART_X, CART_Y);
+    ctx.fillStyle = isActive ? '#1b7a34' : '#ffc72c';
+    if (isActive){ ctx.shadowColor = '#1b7a34'; ctx.shadowBlur = 18; }
+    roundRect(-CART_W/2,-CART_H/2,CART_W,CART_H,8);
+    ctx.fill();
+    ctx.strokeStyle = isActive ? '#0e5423' : '#3a2410';
+    ctx.lineWidth = isActive ? 2 : 1;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = isActive ? '#fff' : '#3a2410';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🛒 加入購物車', 0, 1);
+    ctx.restore();
+  }
+
+  function drawItemTile(tile, isActive){
+    ctx.save();
+    ctx.translate(tile.x, tile.y);
+    ctx.fillStyle = isActive ? '#1b7a34' : '#fff';
+    if (isActive){ ctx.shadowColor = '#1b7a34'; ctx.shadowBlur = 18; }
+    roundRect(-tile.w/2,-tile.w/2,tile.w,tile.w,10);
+    ctx.fill();
+    ctx.strokeStyle = isActive ? '#0e5423' : '#ddd6c8';
+    ctx.lineWidth = isActive ? 2 : 1;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = isActive ? '#fff' : '#3a2410';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(tile.label, 0, 1);
+    ctx.restore();
+  }
+
+  function drawScene(){
+    drawKioskBackdrop();
+    drawItemTile(itemTile, stage==='item');
+    drawCartButton(stage==='cart');
+  }
+
+  function startCondition(){
+    condIndex++;
+    if (condIndex >= conditions.length){
+      endSession();
+      return;
+    }
+    current = conditions[condIndex];
+    clicksThisCond = 0;
+    stage = 'item';
+    itemTile = placeItemTile(current.A, current.W);
+
+    document.getElementById('condNum').textContent = condIndex+1;
+    document.getElementById('curA').textContent = current.A;
+    document.getElementById('curW').textContent = current.W;
+
+    drawScene();
+    lastTime = performance.now();
+  }
+
+  function endSession(){
+    running = false;
+    document.getElementById('msg').textContent =
+      'Session complete. ' + results.length + ' orders recorded. You can export the CSV now.';
+    document.getElementById('exportBtn').disabled = false;
+    drawKioskBackdrop();
+  }
+
+  function handleClick(evt){
+    if (!running) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (evt.clientX - rect.left) * (canvas.width/rect.width);
+    const my = (evt.clientY - rect.top) * (canvas.height/rect.height);
+
+    if (stage === 'item'){
+      const hit = Math.abs(mx-itemTile.x) <= itemTile.w/2 && Math.abs(my-itemTile.y) <= itemTile.w/2;
+      if (!hit) return;
+
+      const now = performance.now();
+      const mt = now - lastTime;
+      const ID = Math.log2((current.A / current.W) + 1);
+
+      trialCount++;
+      results.push({
+        condition: condIndex+1,
+        A: current.A,
+        W: current.W,
+        ID: ID.toFixed(3),
+        MT_ms: mt.toFixed(1)
+      });
+      document.getElementById('trialNum').textContent = trialCount;
+
+      stage = 'cart';
+      lastTime = now;
+      drawScene();
+
+    } else {
+      const hit = Math.abs(mx-CART_X) <= CART_W/2 && Math.abs(my-CART_Y) <= CART_H/2;
+      if (!hit) return;
+
+      clicksThisCond++;
+      lastTime = performance.now();
+
+      if (clicksThisCond >= CLICKS_PER_COND){
+        startCondition();
+      } else {
+        stage = 'item';
+        itemTile = placeItemTile(current.A, current.W);
+        drawScene();
+      }
+    }
+  }
+
+  canvas.addEventListener('click', handleClick);
+
+  document.getElementById('startBtn').addEventListener('click', () => {
+    running = true;
+    results = [];
+    trialCount = 0;
+    condIndex = -1;
+    document.getElementById('exportBtn').disabled = true;
+    document.getElementById('msg').textContent = 'Session running — tap the highlighted (green) item, then Add to Cart.';
+    startCondition();
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    let csv = 'Trial,Condition,A,W,ID,MT_ms\n';
+    results.forEach((r, i) => {
+      csv += `${i+1},${r.condition},${r.A},${r.W},${r.ID},${r.MT_ms}\n`;
+    });
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'fitts_law_kiosk_data.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  drawKioskBackdrop();
+})();
+</script>
+</body>
+</html>
